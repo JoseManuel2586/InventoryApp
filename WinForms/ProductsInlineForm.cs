@@ -1,6 +1,7 @@
 ﻿using InventoryApp.Domain;
 using InventoryApp.Repositories;
 using System.Data;
+using System.Threading.Tasks;
 
 namespace InventoryApp.WinForms
 {
@@ -22,19 +23,18 @@ namespace InventoryApp.WinForms
         {
             await LoadTableAsync();
             SetupGrid();
-            SetupContextMenu();
 
             // Validaciones y errores
-            dataGridProducts.CellValidating += dataGridProducts_CellValidating;
+            dataGridProducts.CellValidating -= dataGridProducts_CellValidating;
             dataGridProducts.DataError += (s, ev) => { ev.ThrowException = false; };
 
             // Persistencia inmediata por celda (más estable que RowValidated)
-            dataGridProducts.CellValidated += dataGridProducts_CellValidated;
+            dataGridProducts.CellValidated -= dataGridProducts_CellValidated;
 
 
 
             // DELETE con tecla Supr
-            dataGridProducts.UserDeletingRow += dataGridProducts_UserDeletingRow;
+            dataGridProducts.UserDeletingRow -= dataGridProducts_UserDeletingRow;
         }
 
         // ================================
@@ -80,6 +80,7 @@ namespace InventoryApp.WinForms
         // ================================
         private void SetupGrid()
         {
+            dataGridProducts.ReadOnly = true;
             dataGridProducts.AutoGenerateColumns = true;
             dataGridProducts.AllowUserToAddRows = true;
             dataGridProducts.AllowUserToDeleteRows = true;
@@ -127,7 +128,7 @@ namespace InventoryApp.WinForms
             };
 
             ctx.Items.Add(miEliminar);
-            dataGridProducts.ContextMenuStrip = ctx;
+            dataGridProducts.ContextMenuStrip = null;
         }
 
         // ================================
@@ -352,6 +353,107 @@ namespace InventoryApp.WinForms
 
         private static decimal ToDecimal(object? o)
             => o == null || o == DBNull.Value ? 0m : decimal.TryParse(o.ToString(), out var d) ? d : 0m;
+
+        private async void btnAdd_Click(object sender, EventArgs e)
+        {
+            using var dlg = new AddEditProductForm();
+            dlg.Text = "Agregar Producto";
+            if(dlg.ShowDialog(this) == DialogResult.OK)
+            {
+                var p = dlg.BuildProduct();
+                try
+                {
+                    int newId = await _productRepo.InsertAsync(p);
+                    MessageBox.Show($"Producto creado con ID #{newId}.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    await RefreshDataAsync();
+                }
+                catch(Exception ex)
+                {
+                    MessageBox.Show("Error al guardar: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private async void btnEdit_Click(object sender, EventArgs e)
+        {
+            if(dataGridProducts.CurrentRow?.DataBoundItem is not DataRowView drv)
+            {
+                MessageBox.Show("Selecciona un producto.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            var row = drv.Row;
+            int id = ToInt(row["id"]);
+            if (id <= 0)
+            {
+                MessageBox.Show("Producto inválido.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            {
+                
+            }
+            var p = await _productRepo.GetByIdAsync(id);
+
+            using var dlg = new AddEditProductForm();
+            dlg.LoadFromProduct(p);
+            if(dlg.ShowDialog(this) == DialogResult.OK)
+            {
+                var edit = dlg.BuildProduct();
+                try
+                {
+                    var ok = await _productRepo.UpdateAsync(edit);
+                    if (ok)
+                    {
+                        MessageBox.Show("Cambios guardados exitosamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        await RefreshDataAsync();
+                    }
+                    else
+                    {
+                        MessageBox.Show("No se pudo actualizar el item.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+                catch(Exception ex)
+                {
+                    MessageBox.Show("Error al actualizar el item: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private async void btnDelete_Click(object sender, EventArgs e)
+        {
+            if(dataGridProducts.CurrentRow?.DataBoundItem is not DataRowView drv)
+            {
+                MessageBox.Show("Selecciona el producto a eliminar.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            var row = drv.Row;
+            int id = ToInt(row["id"]);
+            if (id <= 0) return;
+            var resp = MessageBox.Show($"¿Desea eliminar el producto?", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (resp != DialogResult.Yes) return;
+            try
+            {
+                var ok = await _productRepo.DeleteAsync(id);
+                if (ok)
+                {
+                    MessageBox.Show("Producto eliminado", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await RefreshDataAsync();
+                }
+                else
+                {
+                    MessageBox.Show("No se pudo eliminar (¿referencias en ventas?)", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show("Error al eliminar el item " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async System.Threading.Tasks.Task RefreshDataAsync()
+        {
+            await LoadTableAsync();
+        }
 
     }
 

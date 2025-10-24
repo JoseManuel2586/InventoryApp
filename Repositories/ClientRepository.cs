@@ -12,7 +12,7 @@ namespace InventoryApp.Repositories
         {
             var list = new List<Client>();
             using var con = DbConnectionFactory.Instance.CreateOpen();
-            using var cmd = new MySqlCommand("SELECT id, nombre, nit FROM cliente ORDER BY nombre", con);
+            using var cmd = new MySqlCommand("SELECT id, nombre, nit, mail, tel, dir FROM cliente ORDER BY id", con);
             using var rd = await cmd.ExecuteReaderAsync();
             while (await rd.ReadAsync())
             {
@@ -20,7 +20,10 @@ namespace InventoryApp.Repositories
                 {
                     Id = rd.GetInt32("id"),
                     Nombre = rd.GetString("nombre"),
-                    Nit = rd.GetString("nit")
+                    Nit = rd.GetString("nit"),
+                    Email = rd["mail"] as string ?? "",
+                    Telefono = rd["tel"] as string ?? "",
+                    Direccion = rd["dir"] as string ?? ""
                 });
             }
             return list;
@@ -29,11 +32,19 @@ namespace InventoryApp.Repositories
         public async Task<Client?> GetByIdAsync(int id)
         {
             using var con = DbConnectionFactory.Instance.CreateOpen();
-            using var cmd = new MySqlCommand("SELECT id, nombre, nit FROM cliente WHERE id=@id", con);
+            using var cmd = new MySqlCommand("SELECT id, nombre, nit, mail, tel, dir FROM cliente WHERE id=@id", con);
             cmd.Parameters.AddWithValue("@id", id);
             using var rd = await cmd.ExecuteReaderAsync();
             if (await rd.ReadAsync())
-                return new Client { Id = rd.GetInt32("id"), Nombre = rd.GetString("nombre"), Nit = rd.GetString("nit") };
+                return new Client 
+                { 
+                    Id = rd.GetInt32("id"), 
+                    Nombre = rd.GetString("nombre"), 
+                    Nit = rd.GetString("nit"),
+                    Email = rd["mail"] as string ?? "",
+                    Telefono = rd["tel"] as string ?? "",
+                    Direccion = rd["dir"] as string ?? ""
+                };
             return null;
         }
 
@@ -41,18 +52,24 @@ namespace InventoryApp.Repositories
         {
             using var con = DbConnectionFactory.Instance.CreateOpen();
             using var cmd = new MySqlCommand(
-                "INSERT INTO cliente (nombre, nit) VALUES (@n, @nit); SELECT LAST_INSERT_ID();", con);
+                @"INSERT INTO cliente (nombre, nit, mail, tel, dir) VALUES (@n, @nit, @mail, @tel, @dir); SELECT LAST_INSERT_ID();", con);
             cmd.Parameters.AddWithValue("@n", c.Nombre);
             cmd.Parameters.AddWithValue("@nit", c.Nit);
+            cmd.Parameters.AddWithValue("@mail", c.Email);
+            cmd.Parameters.AddWithValue("@tel", c.Telefono);
+            cmd.Parameters.AddWithValue("@dir", c.Direccion);
             return Convert.ToInt32(await cmd.ExecuteScalarAsync());
         }
 
         public async Task<bool> UpdateAsync(Client c)
         {
             using var con = DbConnectionFactory.Instance.CreateOpen();
-            using var cmd = new MySqlCommand("UPDATE cliente SET nombre=@n, nit=@nit WHERE id=@id", con);
+            using var cmd = new MySqlCommand(@"UPDATE cliente SET nombre=@n, nit=@nit, mail=@mail, tel=@tel, dir=@dir WHERE id=@id", con);
             cmd.Parameters.AddWithValue("@n", c.Nombre);
             cmd.Parameters.AddWithValue("@nit", c.Nit);
+            cmd.Parameters.AddWithValue("@mail", c.Email);
+            cmd.Parameters.AddWithValue("@tel", c.Telefono);
+            cmd.Parameters.AddWithValue("@dir", c.Direccion);
             cmd.Parameters.AddWithValue("@id", c.Id);
             return await cmd.ExecuteNonQueryAsync() > 0;
         }
@@ -68,11 +85,19 @@ namespace InventoryApp.Repositories
         public async Task<Client?> GetByNitAsync(string nit)
         {
             using var con = DbConnectionFactory.Instance.CreateOpen();
-            using var cmd = new MySqlCommand("SELECT id, nombre, nit FROM cliente WHERE nit=@nit", con);
+            using var cmd = new MySqlCommand("SELECT id, nombre, nit, mail, tel, dir FROM cliente WHERE nit=@nit", con);
             cmd.Parameters.AddWithValue("@nit", nit);
             using var rd = await cmd.ExecuteReaderAsync();
             if (await rd.ReadAsync())
-                return new Client { Id = rd.GetInt32("id"), Nombre = rd.GetString("nombre"), Nit = rd.GetString("nit") };
+                return new Client 
+                { 
+                    Id = rd.GetInt32("id"), 
+                    Nombre = rd.GetString("nombre"), 
+                    Nit = rd.GetString("nit"),
+                    Email = rd["mail"] as string ?? "",
+                    Telefono = rd["tel"] as string ?? "",
+                    Direccion = rd["dir"] as string ?? ""
+                };
             return null;
         }
     }

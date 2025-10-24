@@ -48,5 +48,38 @@ namespace InventoryApp.WinForms
                 this.Activate();
             }
         }
+
+        private void btnClientes_Click(object sender, EventArgs e)
+        {
+            this.Hide();
+            try
+            {
+                using var f = new ClientsInlineForm(_clientRepo);
+                f.StartPosition = FormStartPosition.CenterParent;
+                f.ShowDialog(this);
+            }
+            finally
+            {
+                this.Show();
+                this.Activate();
+            }
+
+        }
+
+        private void btnVerVentas_Click(object sender, EventArgs e)
+        {
+            this.Hide();
+            try
+            {
+                using var f = new SalesViewerForm(new SalesQueryRepository());
+                f.StartPosition = FormStartPosition.CenterParent;
+                f.ShowDialog(this);
+            }
+            finally
+            {
+                this.Show();
+                this.Activate();
+            }
+        }
     }
 }
